@@ -4,6 +4,8 @@ from sqlalchemy.orm import DeclarativeBase, Session, Mapped, mapped_column
 import os
 from dotenv import load_dotenv
 from databases import Database
+import asyncio
+
 
 load_dotenv()
 
@@ -27,7 +29,8 @@ class Secrets(Base):
 #create the engine
 engine = create_engine(url=url)
 #create tables if they don't already exist
-Base.metadata.create_all(engine)
-
 db = Database(url)
+
+if __name__ == '__main__':
+    Base.metadata.create_all(engine)
 

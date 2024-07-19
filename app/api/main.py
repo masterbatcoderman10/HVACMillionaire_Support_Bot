@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .db import db
 
 app = FastAPI()
 
@@ -12,6 +13,14 @@ app.add_middleware(
         allow_origins=origins,
     )
 )
+
+@app.on_event("startup")
+async def startup():
+    await db.connect()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await db.disconnect()
 
 @app.get("/")
 def read_root():
