@@ -5,7 +5,7 @@ from .db import db
 from datetime import datetime, timezone
 from .crud import get_access_token, get_refresh_token, create_secret
 from .api_calls import *
-from .models import UserDetails, ConversationBody
+from .models import UserDetails, ConversationBody, Secrets
 from .ai_utils import HVACMillionaireBot
 
 app = FastAPI()
@@ -93,4 +93,15 @@ async def chatbot(
 
     return {"msg": "Message sent successfully", "response": response}
 
+@app.post("/initialize_tokens")
+async def initialize_tokens(refresh_token: Secrets):
+
+    try:
+        # get a new token pair
+        new_token_pair = await get_new_token_pair(refresh_token)
+        # create a new secret pair
+        await create_secret(refresh_token=new_token_pair['refresh_token'], access_token=new_token_pair['access_token'])
+        return {"msg": "Tokens initialized successfully"}
+    except Exception as e:
+        return {"msg": "Something went wrong", "error": str(e)}
 
