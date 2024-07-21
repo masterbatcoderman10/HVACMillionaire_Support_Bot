@@ -95,6 +95,45 @@ async def send_message(user_input, contact_id, access_token):
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
         return response.json()
+    
+async def get_new_token_pair(refresh_token):
+    url = "https://services.leadconnectorhq.com/oauth/token"
+
+    headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+    }
+
+    data = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        return response.json()
+
+async def get_pipelines(access_token):
+    url = "https://services.leadconnectorhq.com/opportunities/pipelines"
+
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Version': '2021-07-28'
+    }
+
+    query_params = {
+        'locationId': location_id
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers, params=query_params)
+        return response.json()
+
+#Create oppotunity function: TBD
+
+
 
     
 

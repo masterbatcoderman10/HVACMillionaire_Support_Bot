@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine
-from sqlalchemy import Text
+from sqlalchemy import Text, TIMESTAMP
 from sqlalchemy.orm import DeclarativeBase, Session, Mapped, mapped_column
 import os
 from dotenv import load_dotenv
 from databases import Database
+from datetime import datetime
 import asyncio
 
 
@@ -25,6 +26,7 @@ class Secrets(Base):
 
     refresh_token: Mapped[Text] = mapped_column(Text, primary_key=True)
     access_token: Mapped[Text] = mapped_column(Text)
+    creation_time: Mapped[datetime.timestamp] = mapped_column(TIMESTAMP, default=datetime.now)
 
 #create the engine
 engine = create_engine(url=url)
