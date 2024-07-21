@@ -15,8 +15,6 @@ services:
     build:
       context: ./app  # Adjusted to the correct relative path
       dockerfile: DockerFile  # Specified the correct Dockerfile for the backend
-    volumes:
-      - ./app/api:/app/api
     ports:
       - "3000:3000"  # Adjusted to match the EXPOSE in Dockerfile-1
     depends_on:
