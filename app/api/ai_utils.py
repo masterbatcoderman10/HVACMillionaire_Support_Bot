@@ -57,7 +57,6 @@ class HVACMillionaireBot:
     async def get_slots(self) -> dict:
         """Useful to find out the available slots for appointments this week."""
         calendar_id = await self.get_calendars()
-        print(calendar_id)
         url = f"https://services.leadconnectorhq.com/calendars/{calendar_id}/free-slots/"
         
         start_date, end_date = self.get_timestamps()
@@ -68,11 +67,10 @@ class HVACMillionaireBot:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=self.headers, params=params)
             data = response.json()
-            pprint(data)
             return data
     
     # @tool("book_appointment", args_schema=AppointmentSchema, return_direct=True)
-    async def book_appointment(self, start_date: str, title: str) -> dict:
+    async def book_appointment(self, start_date: str, title: str, address: str) -> dict:
         """This tool must be used to book an appointment with the provided start date and title."""
         url = "https://services.leadconnectorhq.com/calendars/events/appointments"
         calendar_id = await self.get_calendars()
@@ -81,9 +79,10 @@ class HVACMillionaireBot:
             'locationId' : location_id,
             'contactId' : self.contact_id,
             'startTime' : start_date,
-            'title' : title
+            'title' : title,
+            'address': address
         }
-
+        pprint(body)
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=self.headers, json=body)
             data = response.json()
@@ -290,22 +289,34 @@ class HVACMillionaireBot:
         Based on the past messages and the current messages you will determine the right tool to use.
         The current year is {datetime.now().year}, so make bookings for this year
 
+        `interaction_history` : {self.history}
+
         ###Rules###
-        There are 2 stages to booking an appointment:
+        There are 3 stages to booking an appointment:
         - determining free slots and displaying to the user
-        - taking the user's preference and booking that slot
+        - collecting the user's address
+        - booking that slot
+        
+        An appointment can only be booked if `address_provided`, `time_provided` and `slots_shown` are all true.
+        DO NOT bug the user about address details, whatever they provide accept it.
+
         Your objective is to analyze the past few messages and the user request to choose the most appropriate output.
-        Return a JSON object with the following schema:
-        - `last_4_summary`: summary of the last 4 interactions
-        - `current_progress` : what's the current progress in the appointment booking stage. 
-        - `booking_params` : {{`start_date` : "based on user preference in the exact form of 2024-06-23T03:30:00+05:30. Every detail such as the time zone is important", `title` : an appropriate title due to the nature of the booking (derived from summary)}}
-        - `action`: 'search' or `book`
+        Return a JSON object with the only the following schema:
+        - `conversation_summary`: summary of the interaction so far based on interaction_history
+        - `slots_shown`: have free slots been shared with the user in the past messages?, true/false
+        - `time_provided` : has the user provided a time based on the free slots, true/false
+        - `address_provided` : has the user provided an address in the past messages, true/false
+        - `next_action_reason` : based on the previos boolean values, what is the next action to be taken - with reason
+        - `action`: 
+           -- `search` if `slots_shown` is false
+           -- `collect_address` if `time_provided` is true and `address_provided` is false
+           -- `book` if `time_provided` and `address_provided` are true
+        - `booking_params` : {{`start_date` : "based on user preference in the exact form of 2024-06-23T03:30:00+05:30.", `title` : an appropriate title due to the nature of the booking (derived from summary), `address` : "user provided address, must be present for a valid booking"}}
+        
 
         If the action is `book`, then `booking_params` is mandatory and vice-versa.
         If the user hasn't provided the start date yet, booking can't be made and they must be shown the free slots.
         For the start date, it is absolutely vital to include the timezone and follow the specified format.
-
-        `interaction_history` : {self.history}
         """
 
         action_response = await client.chat.completions.create(
@@ -341,14 +352,30 @@ class HVACMillionaireBot:
             )
             search_response = search_response.choices[0].message.content
             return search_response
+        elif action_data['action'] == 'collect_address':
+            print('collecting address')
+            sys_address_message = """
+            You are an appointment operator for HVAC Millionaire, your objective is to collect the user's address.
+            """
+            address_message = await client.chat.completions.create(
+                model='gpt-3.5-turbo',
+                messages=[
+                    {'role': 'system', 'content': sys_address_message},
+                    {'role': 'user', 'content': 'User address'}
+                ]
+            )
+            return address_message.choices[0].message.content
+
         elif action_data['action'] == 'book':
             booking_params = action_data['booking_params']
             start_date = booking_params['start_date']
+            address = booking_params.get('address')
             if '+05:30' not in start_date:
                 start_date = start_date + '+05:30'
             title = booking_params.get('title')
             title = title if title else "Appointment"
-            booking_response = await self.book_appointment(start_date, title)
+            address = address if address else None
+            booking_response = await self.book_appointment(start_date, title, address)
             pprint(booking_response)
             sys_book_message = f"""
             You are an appointment operator for HVAC Millionaire, a booking appointment has just been scheudled, based on the `booking_response` convey an informative brief message to the user

@@ -1,6 +1,7 @@
 from sqlalchemy import select, insert, delete, update
 from .db import Secrets, db
 import asyncio
+from datetime import datetime, timezone
 
 async def get_access_token():
     # Connect to the database
@@ -23,7 +24,8 @@ async def create_secret(refresh_token: str, access_token: str):
     await db.execute(stmt)
 
     #insert the new secret pair
-    stmt = insert(Secrets).values(refresh_token=refresh_token, access_token=access_token)
+    creation_time = datetime.now(timezone.utc)
+    stmt = insert(Secrets).values(refresh_token=refresh_token, access_token=access_token, creation_time=creation_time)
     await db.execute(stmt)
 
 
