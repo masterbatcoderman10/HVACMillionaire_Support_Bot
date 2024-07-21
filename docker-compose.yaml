@@ -14,7 +14,7 @@ services:
   backend:
     build:
       context: ./app  # Adjusted to the correct relative path
-      dockerfile: DockerFile  # Specified the correct Dockerfile for the backend
+      dockerfile: Dockerfile  # Specified the correct Dockerfile for the backend
     ports:
       - "3000:3000"  # Adjusted to match the EXPOSE in Dockerfile-1
     depends_on:
@@ -25,6 +25,6 @@ services:
   frontend:
     build:
       context: ./src  # Adjusted to the correct relative path
-      dockerfile: DockerFile  # Specified the correct Dockerfile for the frontend
+      dockerfile: Dockerfile  # Specified the correct Dockerfile for the frontend
     ports:
       - "5500:5500"  # Adjusted to match the EXPOSE in the frontend Dockerfile
