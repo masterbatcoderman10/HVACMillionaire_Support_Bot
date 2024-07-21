@@ -1,5 +1,6 @@
 import httpx
 from dotenv import load_dotenv
+from fastapi import HTTPException
 import os
 
 load_dotenv()
@@ -51,7 +52,13 @@ async def create_contact(name, email, phone, access_token):
 
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
-        return response.json()
+        if response.status_code == 400:
+            # Handle the 400 error, e.g., log it, raise an exception, etc.
+            raise HTTPException(status_code=400, detail=response.json())
+        else:
+            response_body = response.json()
+            contact = response_body['contact']
+            return contact['id']
 
 async def create_conversation(contact_id, access_token):
     

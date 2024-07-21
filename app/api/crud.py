@@ -3,8 +3,15 @@ from .db import Secrets, db
 import asyncio
 
 async def get_access_token():
-    stmt = select(Secrets.access_token)
-    return await db.fetch_val(stmt)
+    # Connect to the database
+    stmt = select(Secrets.access_token, Secrets.creation_time)
+    result = await db.fetch_one(stmt)
+    if result:
+        access_token = result.access_token
+        creation_time = result.creation_time
+        return access_token, creation_time
+    else:
+        print("No result found.")
 
 async def get_refresh_token():
     stmt = select(Secrets.refresh_token)
@@ -21,4 +28,4 @@ async def create_secret(refresh_token: str, access_token: str):
 
 
 if __name__ == '__main__':
-    asyncio.run(get_access_token())
+    print(asyncio.run(get_access_token()))
