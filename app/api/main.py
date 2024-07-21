@@ -5,7 +5,8 @@ from .db import db
 from datetime import datetime, timezone
 from .crud import get_access_token, get_refresh_token, create_secret
 from .api_calls import *
-from .models import UserDetails
+from .models import UserDetails, ConversationBody
+from .ai_utils import HVACMillionaireBot
 
 app = FastAPI()
 
@@ -63,4 +64,33 @@ async def submit_details(user_details: UserDetails, access_token: Annotated[str,
         email=user_details.email, 
         phone=user_details.phone, 
         access_token=access_token)
-    return {"msg": "Details submitted successfully", "contact_id": contact_id}
+    # create a conversation
+    conversation_id = await create_conversation(contact_id, access_token)
+    return {"msg": "Details submitted successfully", "contact_id": contact_id, "conversation_id": conversation_id}
+
+@app.post("/chatbot")
+async def chatbot(
+    conversation_details: ConversationBody,
+    access_token: Annotated[str, Depends(get_token)]
+):
+    contact_id = conversation_details.contact_id
+    conversation_id = conversation_details.conversation_id
+    user_input = conversation_details.user_input
+
+    chat_messages = await map_messages(conversation_id, access_token)
+    chat_messages.append({"role": "user", "content": user_input})
+    bot = HVACMillionaireBot(
+        user_context={"name": "user"},
+        contact_id=contact_id,
+        history=chat_messages,
+        ACCESS_TOKEN=access_token
+    )
+    # send the user input
+    await send_message(user_input, contact_id, access_token)
+    response = await bot.execute()
+    # send the bot response
+    await send_message(response, contact_id, access_token)
+
+    return {"msg": "Message sent successfully", "response": response}
+
+

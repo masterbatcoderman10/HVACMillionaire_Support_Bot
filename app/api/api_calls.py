@@ -2,6 +2,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import HTTPException
 import os
+from pprint import pprint
 
 load_dotenv()
 
@@ -9,8 +10,9 @@ client_id = os.getenv('CLIENT_ID')
 client_secret = os.getenv('CLIENT_SECRET')
 location_id = os.getenv('LOCATION_ID')
 
+
 async def create_contact(name, email, phone, access_token):
-    
+
     url = "https://services.leadconnectorhq.com/contacts/"
 
     payload = {
@@ -60,8 +62,9 @@ async def create_contact(name, email, phone, access_token):
             contact = response_body['contact']
             return contact['id']
 
+
 async def create_conversation(contact_id, access_token):
-    
+
     url = "https://services.leadconnectorhq.com/conversations/"
 
     payload = {
@@ -81,6 +84,7 @@ async def create_conversation(contact_id, access_token):
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
         return response.json()
+
 
 async def send_message(user_input, contact_id, access_token):
 
@@ -102,7 +106,8 @@ async def send_message(user_input, contact_id, access_token):
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
         return response.json()
-    
+
+
 async def get_new_token_pair(refresh_token):
     url = "https://services.leadconnectorhq.com/oauth/token"
 
@@ -122,6 +127,7 @@ async def get_new_token_pair(refresh_token):
         response = await client.post(url, headers=headers, data=data)
         return response.json()
 
+
 async def get_pipelines(access_token):
     url = "https://services.leadconnectorhq.com/opportunities/pipelines"
 
@@ -138,11 +144,55 @@ async def get_pipelines(access_token):
         response = await client.get(url, headers=headers, params=query_params)
         return response.json()
 
-#Create oppotunity function: TBD
+
+# Create oppotunity function: TBD
+
+async def create_conversation(contact_id, access_token):
+
+    url = "https://services.leadconnectorhq.com/conversations/"
+
+    payload = {
+        "contactId": contact_id,
+        "locationId": location_id,
+    }
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+        'Version': '2021-04-15'
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=payload)
+        response_data = response.json()
+        return response_data['conversation']['id']
 
 
+async def get_all_messages(conversation_id, access_token):
+    url = f"https://services.leadconnectorhq.com/conversations/{conversation_id}/messages?limit=20"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Version": "2021-04-15",
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
 
-    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        return response.json()
 
 
-
+async def map_messages(conversation_id, access_token):
+    chat_messages = []
+    response = await get_all_messages(conversation_id=conversation_id, access_token=access_token)
+    messages = response.get('messages').get('messages')
+    messages = messages[::-1]
+    messages = [msg_obj['body'] for msg_obj in messages]
+    chat_messages = [{"role": "user", "content": text}
+                     for text in messages]
+    for i, chat_message in enumerate(chat_messages):
+        if i % 2 != 0:
+            chat_message['role'] = "assistant"
+    pprint(chat_messages)
+    if len(chat_messages) % 2 != 0:
+        chat_messages.pop(0)
+    return chat_messages

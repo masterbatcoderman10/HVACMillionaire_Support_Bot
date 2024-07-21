@@ -128,8 +128,6 @@ class HVACMillionaireBot:
 
         ###User Context###
         User Name: {name}
-        User Email: {email}
-        User Phone: {phone}
 
         ###Rules###
         Be polite and refer to the user by their name when appropriate.

@@ -54,7 +54,7 @@ class Chatbox {
     }
   }
 
-  onSendButton(chatbox) {
+  async onSendButton(chatbox) {
     var textField = chatbox.querySelector(".chat-input-text");
     let text1 = textField.value;
     if (text1 === "") {
@@ -72,25 +72,28 @@ class Chatbox {
     let msg1 = { name: "User", message: text1 };
     this.messages.push(msg1);
     textField.value = "";
-    fetch(`${this.args.api_url}/chatbot`, {
-      method: "POST",
-      body: JSON.stringify({ "user-input": text1 }),
-      mode: "cors",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-      .then((r) => r.json())
-      .then((r) => {
-        let msg2 = { name: "Sam", message: r.response };
+    try {
+        const response = await fetch(`${this.args.api_url}/chatbot`, {
+            method: "POST",
+            body: JSON.stringify({ 
+                "user_input": text1,
+                "contact_id": this.data.contact_id,
+                "conversation_id": this.data.conversation_id,
+            }),
+            mode: "cors",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+        const data = await response.json();
+        let msg2 = { name: "Sam", message: data.response };
         this.messages.push(msg2);
-        this.updateChatTextExtended(chatbox, r.response);
-      })
-      .catch((error) => {
+        this.updateChatTextExtended(chatbox, data.response);
+    } catch (error) {
         console.error("Error:", error);
         this.updateChatText(chatbox);
         textField.value = "";
-      });
+    }
   }
 
   updateChatTextExtended(chatbox, messageResponse) {
@@ -403,7 +406,8 @@ class Chatbox {
       const response_data = await response.json();
       console.log(response_data);
       const contact_id = response_data.contact_id;
-      this.data = Object.assign(this.data, { name, contact_id });
+      const conversation_id = response_data.conversation_id;
+      this.data = Object.assign(this.data, { name, contact_id, conversation_id });
       console.log(this.data);
       chatbox.querySelector(".intro-part").style.display = "none";
       chatbox.querySelector(".chat-part").style.display = "block";
