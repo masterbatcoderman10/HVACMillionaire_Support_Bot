@@ -20,7 +20,7 @@ services:
     depends_on:
       - postgres
     env_file:
-      - .env  # Path to your .env file
+      - .denv  # Path to your .env file
 
   frontend:
     build:
