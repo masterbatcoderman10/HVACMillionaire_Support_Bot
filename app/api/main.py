@@ -103,7 +103,7 @@ async def initialize_tokens(refresh_token: Secrets):
 
     try:
         # get a new token pair
-        new_token_pair = await get_new_token_pair(refresh_token)
+        new_token_pair = await get_new_token_pair(refresh_token.refresh_token)
         # create a new secret pair
         await create_secret(refresh_token=new_token_pair['refresh_token'], access_token=new_token_pair['access_token'])
         return {"msg": "Tokens initialized successfully"}
