@@ -87,19 +87,69 @@ class HVACMillionaireBot:
             response = await client.post(url, headers=self.headers, json=body)
             data = response.json()
             return data
+    
+    def get_pipeline_data(self, pipelines):
+
+        filtered_pipelines = [pipeline for pipeline in pipelines if pipeline['name'] == 'Main']
+        if filtered_pipelines:
+            selected_pipeline = filtered_pipelines[0]
+            pipeline_id = selected_pipeline['id']
+            stage_id = selected_pipeline['stages'][7]['id']
+            return pipeline_id, stage_id
+        return None, None
+            
+    async def get_pipeline(self):
+
+        url = 'https://services.leadconnectorhq.com/opportunities/pipelines/'
+
+        params = {
+            'locationId': location_id
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers, params=params)
+            data = response.json()
+            pipelines = data.get('pipelines')
+        
+        if pipelines:
+            return self.get_pipeline_data(pipelines)
+        return None, None
+
+    
+    async def create_opportunity(self, pipeline_id, stage_id, name):
+
+        url = 'https://services.leadconnectorhq.com/opportunities/'
+
+        body = {
+            'locationId': location_id,
+            'pipelineId': pipeline_id,
+            'pipelineStageId': stage_id,
+            'name': name,
+            'contactId': self.contact_id,
+            'status': 'open'
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=self.headers, json=body)
+            #check status message for success
+            if response.status_code == 201:
+                return {"message": "Opportunity created successfully"}
+            return {"message": "Failed to create opportunity"}
 
 
     async def model_router(self):
 
         sys_message = """You are a model router that works for HVAC Millionaire. 
         ###Rules###
-        Based on the conversation history and latest message suggest whether the latest message needs to be routed to the general QA bot, or appointment booking bot.
+        Based on the conversation history and latest message suggest whether the latest message needs to be routed to the general QA bot, appointment booking bot, or the handover bot.
+        The appointment booking bot should be used if the user is asking for a live appointment.
+        The handover bot should be used if the user is asking to get in contact with a human or if the user is not satisfied with the bot's responses.
         Return the following JSON object
 
         {{
         "last_4_summary" : Summary of the last for messages,
         "user_intent" : Based on the summary what does the user intend to do are they inquiring for information or are they requesting an appointment
-        "target_model" : "general" or "appointment" based on the `user_intent`
+        "target_model" : "general", "appointment", or "handover" based on the `user_intent`
         }}    
 
         """
@@ -124,6 +174,7 @@ class HVACMillionaireBot:
         Your goals are the following:
         - Provide users knowledge about HVAC Millionaire and engage with them
         - Provide tips and advice if they're facing a problem
+        - If the user is not satisfied ask them if they'd like to speak to a human instead
 
         ###User Context###
         User Name: {name}
@@ -311,7 +362,7 @@ class HVACMillionaireBot:
            -- `search` if `slots_shown` is false
            -- `collect_address` if `time_provided` is true and `address_provided` is false
            -- `book` if `time_provided` and `address_provided` are true
-        - `booking_params` : {{`start_date` : "based on user preference in the exact form of 2024-06-23T03:30:00+05:30.", `title` : an appropriate title due to the nature of the booking (derived from summary), `address` : "user provided address, must be present for a valid booking"}}
+        - `booking_params` : {{`start_date` : "based on user preference in the exact form of 2024-06-23T03:30:00 NO TIMEZONE.", `title` : an appropriate title due to the nature of the booking (derived from summary), `address` : "user provided address, must be present for a valid booking"}}
         
 
         If the action is `book`, then `booking_params` is mandatory and vice-versa.
@@ -392,6 +443,61 @@ class HVACMillionaireBot:
         else:
             return "Sorry an error occurred while handling your request"
         
+    async def handover_bot(self):
+        
+        latest_query = self.history.pop(-1)
+        system_message = f"""
+        ###Objectives###
+        You are a handover agent for HVAC Millionaire.
+        Your primary goal is to create a handover opportunity for the user, if they desire to speak to a human.
+
+        `interaction_history`: {self.history}
+
+        ###Rules###
+        Based on the `interaction_history` determine an appropriate title for the opportunity.
+        Return a JSON object with the following schema:
+        {{
+            "conversation_summary" : "Summary of the conversation",
+            "opportunity_title" : "Title for the opportunity"
+        }}
+        """
+
+        response = await client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            response_format={'type': 'json_object'},
+            messages=[
+                {'role': 'system', "content": system_message},
+                latest_query
+            ],
+            temperature=0.7,
+            max_tokens=512
+        )
+
+        response_payload = json.loads(response.choices[0].message.content)
+        name = response_payload['opportunity_title']
+        # create opportunity
+        pipeline_id, stage_id = await self.get_pipeline()
+        if pipeline_id and stage_id:
+            opportunity_response = await self.create_opportunity(pipeline_id, stage_id, name)
+            #prompt ai to produce a response message based on the response and return
+            sys_message = f"""
+            You are a handover agent for HVAC Millionaire, an opportunity has just been created based on the `opportunity_response`. `
+            """
+            input_msg = f"`opportunity_response` : {opportunity_response}"
+            handover_response = await client.chat.completions.create(
+                model='gpt-3.5-turbo',
+                messages=[
+                    {'role': 'system', 'content': sys_message},
+                    {'role': 'user', 'content': input_msg}
+                ]
+            )
+            return handover_response.choices[0].message.content
+        else:
+            return "Sorry an error occurred while handling your request"
+
+        
+
+
     async def execute(self) -> str:
 
         #Call model router
@@ -404,5 +510,8 @@ class HVACMillionaireBot:
         elif router_output['target_model'] == 'appointment':
             appointment_response = await self.appointment_booking()
             return appointment_response
+        elif router_output['target_model'] == 'handover':
+            handover_response = await self.handover_bot()
+            return handover_response
         else:
             return "Sorry an error occurred while handling your request"

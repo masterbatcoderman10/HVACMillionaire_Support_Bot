@@ -196,3 +196,18 @@ async def map_messages(conversation_id, access_token):
     if len(chat_messages) % 2 != 0:
         chat_messages.pop(0)
     return chat_messages
+
+async def get_contact_details(contact_id, access_token):
+    url = f"https://services.leadconnectorhq.com/contacts/{contact_id}"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Version": "2021-04-15",
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
+
+    #get the name and return
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        return response.json()['contact']['firstName']
+

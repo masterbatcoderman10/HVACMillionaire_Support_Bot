@@ -22,9 +22,9 @@ services:
     env_file:
       - .denv  # Path to your .env file
 
-  frontend:
-    build:
-      context: ./src  # Adjusted to the correct relative path
-      dockerfile: Dockerfile  # Specified the correct Dockerfile for the frontend
-    ports:
-      - "5500:5500"  # Adjusted to match the EXPOSE in the frontend Dockerfile
+  # frontend:
+  #   build:
+  #     context: ./src  # Adjusted to the correct relative path
+  #     dockerfile: Dockerfile  # Specified the correct Dockerfile for the frontend
+  #   ports:
+  #     - "5500:5500"  # Adjusted to match the EXPOSE in the frontend Dockerfile
