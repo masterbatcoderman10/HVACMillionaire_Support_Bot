@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from .db import db
+from .db import db, Base, engine
 from datetime import datetime, timezone
 from .crud import get_access_token, get_refresh_token, create_secret
 from .api_calls import *
@@ -47,6 +47,7 @@ async def get_token():
 
 @app.on_event("startup")
 async def startup():
+    Base.metadata.create_all(engine)
     await db.connect()
 
 
