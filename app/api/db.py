@@ -26,7 +26,7 @@ class Secrets(Base):
 
     refresh_token: Mapped[Text] = mapped_column(Text, primary_key=True)
     access_token: Mapped[Text] = mapped_column(Text)
-    creation_time: Mapped[datetime.timestamp] = mapped_column(TIMESTAMP, default=datetime.now)
+    creation_time: Mapped[datetime.timestamp] = mapped_column(TIMESTAMP(timezone=True), default=datetime.now)
 
 #create the engine
 engine = create_engine(url=url)
