@@ -55,36 +55,36 @@ async def create_contact(name, email, phone, access_token):
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
         if response.status_code == 400:
-            # Handle the 400 error, e.g., log it, raise an exception, etc.
-            raise HTTPException(status_code=400, detail=response.json())
+            # Contact already exists, the error response body contains a `meta` object with existing contact id return that
+            response_body = response.json()
+            meta = response_body['meta']
+            return meta['contactId']
         else:
             response_body = response.json()
             contact = response_body['contact']
             return contact['id']
+        
+async def search_conversations(contact_id, access_token):
 
+    url = "https://services.leadconnectorhq.com/conversations/search"
 
-async def create_conversation(contact_id, access_token):
-
-    url = "https://services.leadconnectorhq.com/conversations/"
-
-    payload = {
+    params = {
         "contactId": contact_id,
-        "locationId": location_id,
-        "unreadCount": 0,  # Modify as needed
-        "starred": False,  # Modify as needed
-        "inbox": False,  # Modify as needed
-        "deleted": False  # Modify as needed
     }
+
     headers = {
         'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json',
         'Version': '2021-04-15'
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=payload)
-        return response.json()
-
+        response = await client.get(url, headers=headers, params=params)
+        response_body = response.json()
+        conversations = response_body["conversations"]
+        if conversations:
+            return conversations[0]['id']
+        else:
+            return None
 
 async def send_message(user_input, contact_id, access_token):
 
@@ -163,6 +163,8 @@ async def create_conversation(contact_id, access_token):
 
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
+        if response.status_code == 400:
+            return await search_conversations(contact_id=contact_id, access_token=access_token)
         response_data = response.json()
         return response_data['conversation']['id']
 
